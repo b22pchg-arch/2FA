@@ -1,12 +1,11 @@
 /* VBA Reader Offline PWA Service Worker - desktop layout fix */
-const CACHE_NAME = 'vba-reader-offline-2026-06-03-08-desktop-mobile';
+const CACHE_NAME = '2fa-desktop-mobile';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
   './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-192.svg'
+  './icons/icon-512.png'
 ];
 
 async function cacheAppShell(){
