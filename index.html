@@ -38,7 +38,9 @@
         .small-link { flex:1; display:block; text-decoration:none; border:1px solid var(--border); color:#3c4043; border-radius:8px; padding:8px 10px; font-weight:700; font-size:13px; background:#f8f9fa; }
         .account-select, .main-input, .detail-input { width: 100%; font-size: 15px; border: 1px solid var(--border); border-radius: 8px; outline: none; background-color: #f8f9fa; color: var(--text); }
         .account-select { padding: 10px; margin-bottom: 16px; cursor: pointer; }
-        .main-input { padding: 12px 40px 12px 12px; font-size: 16px; text-align: center; font-family: monospace; text-transform: uppercase; background:#fff; }
+        .main-input { padding: 12px 88px 12px 12px; font-size: 16px; text-align: center; font-family: monospace; text-transform: uppercase; background:#fff; }
+        .secret-toggle-btn { position: absolute; right: 42px; top: 50%; transform: translateY(-50%); background: #eef3fe; border: 1px solid #d7e3fc; color: var(--primary); cursor: pointer; font-size: 13px; padding: 5px 7px; border-radius: 999px; font-weight: 800; line-height: 1; }
+        .secret-toggle-btn:hover { background: #d7e3fc; }
         .detail-input { flex: 1; padding: 8px 12px; font-size: 14px; background:#fff; min-width:0; }
         .account-select:focus, .main-input:focus, .detail-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
         optgroup { font-weight: bold; color: var(--primary); } option { color: var(--text); font-weight: normal; }
@@ -58,6 +60,8 @@
         .action-buttons { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
         .btn { flex: 1; padding: 10px; font-size: 14px; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; color: white; min-width: 105px; }
         .btn-save { background-color: var(--primary); } .btn-scan { background-color: var(--success); }
+        .btn-export { background-color: #0f766e; } .btn-import { background-color: #7c3aed; }
+        .btn-secret-qr { background-color: #ea580c; display: none; }
         .btn-delete { background-color: white; color: var(--danger); border: 1px solid var(--danger); display: none; }
         .toast { position: fixed; bottom: calc(24px + env(safe-area-inset-bottom,0px)); left: 50%; transform: translateX(-50%); background: #323232; color: white; padding: 10px 20px; border-radius: 24px; font-size: 14px; opacity: 0; transition: opacity 0.3s ease; pointer-events: none; z-index: 10000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); max-width: 92vw; }
         #qrModal {
@@ -72,6 +76,14 @@
         #reader canvas { display:none; }
         .scan-box { position:absolute; width:min(72vw,320px); aspect-ratio:1; border:3px solid #00e676; border-radius:18px; box-shadow:0 0 0 9999px rgba(0,0,0,.20); pointer-events:none; }
         .close-modal { flex:0 0 auto; padding: 15px; background: var(--danger); color: white; border: none; font-size: 16px; font-weight: bold; cursor: pointer; }
+        #secretShareModal { display:none; position:fixed; inset:0; width:100dvw; height:100dvh; background:rgba(15,23,42,.78); z-index:10001; padding:18px; align-items:center; justify-content:center; }
+        .secret-share-box { width:min(94vw,380px); background:#fff; color:var(--text); border-radius:18px; padding:18px; box-shadow:0 18px 45px rgba(0,0,0,.28); text-align:center; }
+        .secret-share-box h3 { margin:0 0 8px; font-size:18px; }
+        #secretShareInfo { margin-top:10px; font-size:12px; color:#5f6368; line-height:1.45; word-break:break-word; }
+        #secretShareQr { display:flex; align-items:center; justify-content:center; min-height:270px; padding:10px; background:#fff; border:1px dashed var(--border); border-radius:14px; }
+        #secretShareQr img, #secretShareQr canvas, #secretShareQr svg { max-width:260px; max-height:260px; width:100%; height:auto; }
+        .secret-share-actions { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+        .secret-share-actions .btn { min-width:120px; }
         @media (max-width: 430px) {
             body { padding: 0; align-items: stretch; } .container { border-radius:0; max-height:100dvh; padding:18px 14px; }
             .code-display { font-size: 42px; } .detail-row label { width:68px; flex-basis:68px; font-size:12px; }
@@ -88,13 +100,25 @@
             <div id="reader"><div class="scan-box"></div></div>
             <button class="close-modal" id="closeQrBtn">HỦY QUÉT</button>
         </div>
+        <div id="secretShareModal" aria-hidden="true">
+            <div class="secret-share-box">
+                <h3>QR chia sẻ Secret Key</h3>
+                <div id="secretShareQr"></div>
+                <div id="secretShareInfo">Chỉ chia sẻ QR này với người được phép sử dụng tài khoản 2FA.</div>
+                <div class="secret-share-actions">
+                    <button class="btn btn-export" id="copySecretQrTextBtn" type="button">📋 Copy chuỗi QR</button>
+                    <button class="btn btn-delete" id="closeSecretQrBtn" type="button" style="display:block">Đóng</button>
+                </div>
+            </div>
+        </div>
 
         <h2>2FA Offline</h2>
         <p class="desc">Bảo mật - Ngoại tuyến - Lưu trữ cục bộ</p>
         <select id="accountSelect" class="account-select"></select>
         <div class="input-wrapper">
-            <input type="text" id="secretInput" class="main-input" placeholder="Nhập mã bí mật (Secret Key)..." autocomplete="off" spellcheck="false">
-            <button class="clear-btn" id="clearBtn" title="Làm mới form">✖</button>
+            <input type="password" id="secretInput" class="main-input" placeholder="Nhập mã bí mật (Secret Key)..." autocomplete="off" spellcheck="false">
+            <button class="secret-toggle-btn" id="toggleSecretBtn" type="button" title="Hiện Secret Key bằng mật khẩu động">👁</button>
+            <button class="clear-btn" id="clearBtn" type="button" title="Làm mới form">✖</button>
         </div>
         <div id="errorMsg" class="error">Khóa bí mật không hợp lệ!</div>
         <div class="code-wrapper"><div class="code-display" id="codeDisplay">------</div><button class="icon-btn" id="copyCodeBtn" title="Copy mã 2FA">📋</button></div>
@@ -106,6 +130,9 @@
             <div class="detail-row"><label>Mật khẩu:</label><input type="text" id="detail2" class="detail-input" placeholder="Nhập Mật khẩu..."><button class="icon-btn" onclick="copyDetail('detail2')" title="Copy Mật khẩu">📋</button></div>
         </div>
         <div class="action-buttons"><button class="btn btn-save" id="saveBtn">💾 Lưu</button><button class="btn btn-scan" id="scanBtn">📸 Quét QR</button><button class="btn btn-delete" id="deleteBtn">🗑 Xóa</button></div>
+        <div class="action-buttons"><button class="btn btn-secret-qr" id="secretQrBtn" type="button">🔳 Tạo QR chia sẻ Secret</button></div>
+        <div class="action-buttons"><button class="btn btn-export" id="exportConfigBtn">📤 Lưu/Xuất/Chia sẻ cấu hình</button><button class="btn btn-import" id="importConfigBtn">📥 Nhập cấu hình</button></div>
+        <input type="file" id="configFileInput" accept="application/json,.json" style="display:none">
     </div>
     <div id="toast" class="toast">Đã copy!</div>
 
@@ -123,15 +150,17 @@
 { name: "Phòng QLĐT", secret: "TDOVQNGY6GFXIV27QLVYXGMEDGCQERZK", detail1: "guelevleftik595@hotmail.com", detail2: "chatgpt@hdz123"},
 { name: "Phòng An Toàn", secret: "HHTTB7FCVCUBECVBY2VMLK33CG6R7RRN", detail1: "valorejacalne56@hotmail.com", detail2: "chatgpt@hdz123"},
 { name: "Phòng KTGSMBĐ", secret: "SDOZL2VSRU4K4AVMX4WPHTHYFYH6G7DZ", detail1: "borzekacayobit3@hotmail.com", detail2: "chatgpt@hdz123"}
-
         ];
         const STORAGE_KEY = 'offline2fa_custom_accounts';
         let customAccounts = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') || [];
         const $ = id => document.getElementById(id);
         const accountSelect = $('accountSelect'), secretInput = $('secretInput'), accountName = $('accountName'), detail1 = $('detail1'), detail2 = $('detail2');
         const clearBtn = $('clearBtn'), saveBtn = $('saveBtn'), deleteBtn = $('deleteBtn'), scanBtn = $('scanBtn'), codeDisplay = $('codeDisplay');
+        const toggleSecretBtn = $('toggleSecretBtn'), secretQrBtn = $('secretQrBtn'), exportConfigBtn = $('exportConfigBtn'), importConfigBtn = $('importConfigBtn'), configFileInput = $('configFileInput');
         const progressBar = $('progressBar'), timerText = $('timerText'), errorMsg = $('errorMsg'), toast = $('toast');
         const qrModal = $('qrModal'), closeQrBtn = $('closeQrBtn'), reader = $('reader'), qrStatus = $('qrStatus');
+        const secretShareModal = $('secretShareModal'), secretShareQr = $('secretShareQr'), secretShareInfo = $('secretShareInfo'), closeSecretQrBtn = $('closeSecretQrBtn'), copySecretQrTextBtn = $('copySecretQrTextBtn');
+        let lastSecretQrPayload = '';
         let html5QrcodeScanner = null, scanStream = null, scanLoopId = 0, scanActive = false;
         function renderDropdown() {
             accountSelect.innerHTML = '<option value="">-- Tạo tài khoản mới --</option>';
@@ -271,7 +300,160 @@
         function copyToClipboard(text) { if (!text) return showToast('Không có dữ liệu!'); navigator.clipboard.writeText(text).then(()=>showToast('Đã copy!')).catch(()=>showToast('Lỗi copy!')); }
         $('copyCodeBtn').addEventListener('click', () => { const c=codeDisplay.innerText; if (c !== '------') copyToClipboard(c.replace(/\s/g,'')); else showToast('Chưa có mã!'); });
         function copyDetail(inputId) { copyToClipboard($(inputId).value.trim()); } window.copyDetail = copyDetail;
-        secretInput.addEventListener('input', () => { clearBtn.style.display = secretInput.value.length ? 'block' : 'none'; updateUI(); });
+
+        function pad2(n) { return String(n).padStart(2, '0'); }
+        function getDayLetter(dateObj) { return String.fromCharCode(65 + ((dateObj.getDate() - 1) % 26)); }
+        function buildDynamicPassword(dateObj = new Date()) {
+            const mm = pad2(dateObj.getMonth() + 1);
+            const dd = pad2(dateObj.getDate());
+            const yy = String(dateObj.getFullYear()).slice(-2);
+            const hh = pad2(dateObj.getHours());
+            const min = pad2(dateObj.getMinutes());
+            return `${mm}${dd}${yy}${hh}${min}${getDayLetter(dateObj)}`;
+        }
+        function isValidDynamicPassword(input) {
+            const cleaned = String(input || '').trim().toUpperCase();
+            const now = Date.now();
+            return [-60000, 0, 60000].some(offset => cleaned === buildDynamicPassword(new Date(now + offset)));
+        }
+        let isSecretHidden = true;
+        function updateSecretQrButton() {
+            if (!secretQrBtn) return;
+            const hasSecret = !!normalizeSecret(secretInput.value);
+            secretQrBtn.style.display = (!isSecretHidden && hasSecret) ? 'block' : 'none';
+        }
+        function setSecretHidden(hidden) {
+            isSecretHidden = !!hidden;
+            secretInput.type = isSecretHidden ? 'password' : 'text';
+            toggleSecretBtn.textContent = isSecretHidden ? '👁' : '🙈';
+            toggleSecretBtn.title = isSecretHidden ? 'Hiện Secret Key bằng mật khẩu động' : 'Ẩn Secret Key';
+            if (isSecretHidden) closeSecretShareModal();
+            updateSecretQrButton();
+        }
+        toggleSecretBtn.addEventListener('click', () => {
+            if (!isSecretHidden) {
+                setSecretHidden(true);
+                return showToast('🔒 Đã ẩn Secret Key.');
+            }
+            const pass = prompt('Nhập mật khẩu động để hiện Secret Key.\nCông thức: MMDDYYhhmm + chữ cái ngày hiện tại. Ví dụ ngày 1=A, ngày 2=B, ..., ngày 26=Z, ngày 27=A.');
+            if (pass === null) return;
+            if (!isValidDynamicPassword(pass)) return showToast('❌ Sai mật khẩu động hoặc sai phút hiện tại!');
+            setSecretHidden(false);
+            showToast('🔓 Đã hiện Secret Key. Có thể tạo QR chia sẻ.');
+        });
+        function buildSecretOtpAuthUri() {
+            const secret = normalizeSecret(secretInput.value);
+            const issuer = (accountName.value.trim() || '2FA Offline').slice(0, 80);
+            const accountLabel = (detail1.value.trim() || accountName.value.trim() || 'account').slice(0, 120);
+            const label = encodeURIComponent(`${issuer}:${accountLabel}`);
+            return `otpauth://totp/${label}?secret=${encodeURIComponent(secret)}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;
+        }
+        function openSecretShareModal() {
+            secretShareModal.style.display = 'flex';
+            secretShareModal.setAttribute('aria-hidden', 'false');
+        }
+        function closeSecretShareModal() {
+            if (!secretShareModal) return;
+            secretShareModal.style.display = 'none';
+            secretShareModal.setAttribute('aria-hidden', 'true');
+        }
+        function createSecretShareQr() {
+            if (isSecretHidden) return showToast('🔒 Cần nhập đúng mật khẩu để hiện Secret Key trước.');
+            const secret = normalizeSecret(secretInput.value);
+            if (!secret) return showToast('⚠️ Chưa có Secret Key để tạo QR.');
+            if (typeof QRCode === 'undefined') return showToast('❌ Thiếu thư viện tạo QR trong file.');
+            lastSecretQrPayload = buildSecretOtpAuthUri();
+            secretShareQr.innerHTML = '';
+            new QRCode(secretShareQr, { text: lastSecretQrPayload, width: 260, height: 260, correctLevel: QRCode.CorrectLevel.M });
+            secretShareInfo.innerHTML = 'QR này chứa Secret Key dạng <b>otpauth://totp</b>, có thể quét bằng ứng dụng 2FA khác hoặc bằng chính công cụ này.';
+            openSecretShareModal();
+        }
+        secretQrBtn.addEventListener('click', createSecretShareQr);
+        closeSecretQrBtn.addEventListener('click', closeSecretShareModal);
+        secretShareModal.addEventListener('click', e => { if (e.target === secretShareModal) closeSecretShareModal(); });
+        copySecretQrTextBtn.addEventListener('click', () => copyToClipboard(lastSecretQrPayload));
+
+        function getCurrentFormConfig() {
+            return {
+                selectedValue: accountSelect.value || '',
+                name: accountName.value.trim(),
+                secret: normalizeSecret(secretInput.value),
+                detail1: detail1.value.trim(),
+                detail2: detail2.value.trim()
+            };
+        }
+        function safeAccountsFromConfig(data) {
+            const raw = Array.isArray(data?.customAccounts) ? data.customAccounts : (Array.isArray(data?.accounts) ? data.accounts : []);
+            return raw.map(acc => ({
+                name: String(acc?.name || '').trim(),
+                secret: normalizeSecret(acc?.secret || ''),
+                detail1: String(acc?.detail1 || '').trim(),
+                detail2: String(acc?.detail2 || '').trim()
+            })).filter(acc => acc.name && acc.secret);
+        }
+        function mergeAccounts(oldList, newList) {
+            const map = new Map();
+            [...oldList, ...newList].forEach(acc => {
+                const key = `${normalizeSecret(acc.secret)}|${String(acc.name || '').trim().toLowerCase()}`;
+                map.set(key, acc);
+            });
+            return Array.from(map.values());
+        }
+        function downloadBlob(blob, fileName) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = fileName;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+        }
+        async function exportAndShareConfig() {
+            const stamp = new Date();
+            const fileName = `2FA_config_${stamp.getFullYear()}${pad2(stamp.getMonth()+1)}${pad2(stamp.getDate())}_${pad2(stamp.getHours())}${pad2(stamp.getMinutes())}.json`;
+            const data = {
+                app: '2FA Offline',
+                schemaVersion: 1,
+                exportedAt: stamp.toISOString(),
+                storageKey: STORAGE_KEY,
+                customAccounts,
+                currentForm: getCurrentFormConfig()
+            };
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+            try {
+                const file = new File([blob], fileName, { type: 'application/json' });
+                if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+                    await navigator.share({ files: [file], title: 'Cấu hình 2FA Offline', text: 'File cấu hình 2FA Offline' });
+                    return showToast('✅ Đã mở chia sẻ file cấu hình.');
+                }
+            } catch(e) { console.warn('Web Share không khả dụng, chuyển sang tải file.', e); }
+            downloadBlob(blob, fileName);
+            showToast('✅ Đã tải file cấu hình về thiết bị.');
+        }
+        async function importConfigFile(file) {
+            if (!file) return;
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                const importedAccounts = safeAccountsFromConfig(data);
+                if (!importedAccounts.length) return showToast('⚠️ File cấu hình không có tài khoản hợp lệ.');
+                const replaceAll = customAccounts.length ? confirm('Nhập cấu hình: OK = thay thế toàn bộ tài khoản tự thêm, Hủy = gộp thêm vào danh sách hiện có.') : true;
+                customAccounts = replaceAll ? importedAccounts : mergeAccounts(customAccounts, importedAccounts);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(customAccounts));
+                renderDropdown();
+                if (customAccounts.length) { accountSelect.value = 'custom_0'; accountSelect.dispatchEvent(new Event('change')); }
+                showToast(`✅ Đã nhập ${importedAccounts.length} tài khoản từ cấu hình.`);
+            } catch(e) {
+                console.error(e);
+                showToast('❌ Không đọc được file cấu hình JSON.');
+            } finally {
+                configFileInput.value = '';
+            }
+        }
+        exportConfigBtn.addEventListener('click', exportAndShareConfig);
+        importConfigBtn.addEventListener('click', () => configFileInput.click());
+        configFileInput.addEventListener('change', e => importConfigFile(e.target.files && e.target.files[0]));
+
+        secretInput.addEventListener('input', () => { clearBtn.style.display = secretInput.value.length ? 'block' : 'none'; updateSecretQrButton(); updateUI(); });
         function base32ToUint8Array(base32) {
             const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; let bits=''; const cleaned=normalizeSecret(base32).replace(/[^A-Z2-7]/g,'');
             const value=new Uint8Array(Math.floor(cleaned.length*5/8)); let index=0;
@@ -296,7 +478,9 @@
             if (secret) { const otp=await generateTOTP(secret); if (otp===false) { errorMsg.style.display='block'; codeDisplay.innerText='------'; } else { errorMsg.style.display='none'; codeDisplay.innerText=otp.substring(0,3)+' '+otp.substring(3,6); } }
             else { errorMsg.style.display='none'; codeDisplay.innerText='------'; }
         }
+        setSecretHidden(true);
         renderDropdown(); if (FIXED_ACCOUNTS.length) { accountSelect.value='fixed_0'; accountSelect.dispatchEvent(new Event('change')); } else if (customAccounts.length) { accountSelect.value='custom_0'; accountSelect.dispatchEvent(new Event('change')); }
+        updateSecretQrButton();
         setInterval(updateUI, 1000);
     </script>
 </body>
